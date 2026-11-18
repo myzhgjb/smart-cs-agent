@@ -1,23 +1,53 @@
-# app/main.py
+"""FastAPI 入口。"""
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1.chat import router as chat_router
-from app.api.v1.status import router as status_router
-from app.api.v1.admin import router as admin_router
-from app.api.v1.websocket import router as websocket_router
-from app.api.v1.auth import router as auth_router  # v4.0 新增
-from app.core.config import settings
-from app.core.database import init_db
-from app.graph.workflow import compile_app_graph
-import app.graph.workflow as workflow_module
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from sqlmodel import func, select
 
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version="4.0.0",
-    description="全栈·沉浸式人机协作系统 (The Immersive System) - v4.0"
-)
+from app.api import admin as admin_api
+from app.api import auth as auth_api
+from app.api import chat as chat_api
+from app.api import ws as ws_api
+from app.core.config import BASE_DIR, settings
+from app.core.db import async_session_maker, init_db
+from app.models import KnowledgeChunk, KnowledgeDoc
+from app.rag.bm25 import index
+from app.rag.ingest import ingest_directory, refresh_index
+from app.seed import ensure_seed
 
-# 1. 配置跨域
+FRONTEND_DIR = Path(__file__).parent / "frontend"
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    seeded = await ensure_seed()
+
+    async with async_session_maker() as session:
+        doc_count = (await session.exec(select(func.count()).select_from(KnowledgeDoc))).one()
+
+    if doc_count == 0:
+        docs = await ingest_directory(settings.KB_DIR, source="内置")
+        print(f"[KB] 已导入 {len(docs)} 篇内置知识文档")
+    else:
+        count = await refresh_index()
+        print(f"[KB] 索引就绪，共 {count} 个知识片段")
+
+    if seeded:
+        print("[Seed] 已生成演示用户 / 订单 / 发票数据")
+
+    print(f"[App] {settings.PROJECT_NAME} v{settings.VERSION} 启动完成 -> http://127.0.0.1:8000")
+    yield
+
+
+app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION, lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,35 +56,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. 注册路由
-app.include_router(auth_router, prefix=settings.API_V1_STR, tags=["Auth"])  # v4.0 新增
-app.include_router(chat_router, prefix=settings.API_V1_STR, tags=["Chat"])
-app.include_router(status_router, prefix=settings.API_V1_STR, tags=["Status"])
-app.include_router(admin_router, prefix=settings.API_V1_STR, tags=["Admin"])
-app.include_router(websocket_router, prefix=settings.API_V1_STR, tags=["WebSocket"])
+for router in (auth_api.router, chat_api.router, admin_api.router, ws_api.router):
+    app.include_router(router, prefix=settings.API_PREFIX)
+
+app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 
-@app.on_event("startup")
-async def on_startup():
-    print(" Starting E-commerce Smart Agent v4.0...")
-    await init_db()
-    workflow_module.app_graph = await compile_app_graph()
-    print(" Infrastructure is ready.")
+@app.get("/", include_in_schema=False)
+async def home():
+    return FileResponse(FRONTEND_DIR / "index.html")
+
+
+@app.get("/admin", include_in_schema=False)
+async def admin_page():
+    return FileResponse(FRONTEND_DIR / "admin.html")
 
 
 @app.get("/health")
-async def health_check():
+async def health():
+    async with async_session_maker() as session:
+        docs = (await session.exec(select(func.count()).select_from(KnowledgeDoc))).one()
     return {
-        "status": "healthy", 
-        "version": "v4.0",
+        "status": "ok",
+        "app": settings.PROJECT_NAME,
+        "version": settings.VERSION,
+        "llm": settings.LLM_MODEL,
+        "kb_chunks": index.size,
+        "kb_docs": int(docs),
         "features": [
-            "用户登录认证", 
-            "多租户数据隔离",  
-            "订单查询",
-            "政策咨询",
-            "退货申请",
-            "人工审核",
-            "实时状态同步",
-            "管理员工作台"
-        ]
+            "多轮对话 + 意图路由",
+            "订单 / 物流 / 发票工具调用",
+            "退款风控 + 人工审核（HITL）",
+            "私有知识库 BM25 检索",
+            "SSE 流式回复",
+            "管理台会话回放",
+        ],
     }

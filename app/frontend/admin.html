@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>管理台 · 星海优选客服中心</title>
+<link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+<div class="admin-page">
+  <header class="admin-top">
+    <div class="brand2"><div class="mark">星</div>星海优选</div>
+    <div class="sep"></div>
+    <div class="crumb">客服管理台</div>
+    <div class="grow"></div>
+    <a class="btn btn-ghost btn-sm" href="/">返回客服端</a>
+    <div class="avatar" id="adminAvatar" style="width:30px;height:30px;font-size:12px;">王</div>
+    <div style="font-size:13px;font-weight:500;" id="adminName">王敏</div>
+    <button class="btn btn-ghost btn-sm" id="adminLogout">退出</button>
+  </header>
+
+  <div class="admin-wrap">
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="sl">待审工单</div>
+        <div class="sv" id="statPending">-</div>
+        <div class="sd">高/中风险退款自动转入</div>
+      </div>
+      <div class="stat-card">
+        <div class="sl">今日咨询</div>
+        <div class="sv" id="statToday">-</div>
+        <div class="sd">用户消息条数</div>
+      </div>
+      <div class="stat-card">
+        <div class="sl">知识库片段</div>
+        <div class="sv" id="statChunks">-</div>
+        <div class="sd">本地 BM25 索引</div>
+      </div>
+      <div class="stat-card">
+        <div class="sl">累计退款金额</div>
+        <div class="sv" id="statRefund">-</div>
+        <div class="sd">含待审与已完成</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="audits">审核工单 <span class="cnt" id="pendingDot" style="display:none;">0</span></button>
+      <button class="tab" data-tab="sessions">会话回放</button>
+      <button class="tab" data-tab="kb">私有知识库</button>
+    </div>
+
+    <!-- 审核 -->
+    <section id="tab-audits">
+      <div class="panel-grid">
+        <div class="card-box">
+          <div class="cb-head"><span class="t">工单队列</span>
+            <select id="auditFilter" class="btn btn-ghost btn-sm" style="margin-left:auto;height:30px;">
+              <option value="pending">待处理</option>
+              <option value="all">全部</option>
+            </select>
+          </div>
+          <div class="audit-list" id="auditList"><div class="detail-empty">加载中…</div></div>
+        </div>
+        <div class="card-box">
+          <div class="cb-body" id="auditDetail"><div class="detail-empty">从左侧选择一条工单<br />查看订单、退款与风险快照</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 会话 -->
+    <section id="tab-sessions" class="hidden">
+      <div class="panel-grid">
+        <div class="card-box">
+          <div class="cb-head"><span class="t">全部会话</span><span class="r" id="sessionCount"></span></div>
+          <div class="replay-list" id="sessionList"><div class="detail-empty">加载中…</div></div>
+        </div>
+        <div class="card-box">
+          <div class="cb-head"><span class="t">会话回放</span><span class="r" id="replayMeta"></span></div>
+          <div class="transcript" id="transcript"><div class="detail-empty">选择左侧会话查看完整对话<br />含意图标签、知识引用与卡片快照</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 知识库 -->
+    <section id="tab-kb" class="hidden">
+      <div class="panel-grid">
+        <div class="card-box">
+          <div class="cb-head"><span class="t">上传私有文档</span></div>
+          <div class="cb-body">
+            <div class="upload-zone" id="uploadZone">
+              <div style="font-size:22px;margin-bottom:6px;">📄</div>
+              <div class="uz-t">点击选择或拖拽文件到此处</div>
+              <div class="uz-d">支持 PDF / DOCX / Markdown / TXT<br />解析后立即切分并写入本地检索索引</div>
+            </div>
+            <input type="file" id="fileInput" class="hidden" multiple accept=".pdf,.docx,.md,.txt" />
+            <div style="margin-top:14px;">
+              <div class="sl" style="font-size:11.5px;color:var(--text-3);margin-bottom:6px;">知识分类</div>
+              <input id="kbCategory" placeholder="例如：退换货政策 / 内部话术" value="上传知识"
+                style="width:100%;height:36px;border-radius:9px;border:1px solid var(--line-strong);padding:0 11px;font-size:13px;outline:none;background:#fbfcff;" />
+            </div>
+            <div style="margin-top:16px;border-top:1px dashed var(--line);padding-top:14px;">
+              <div class="sl" style="font-size:11.5px;color:var(--text-3);margin-bottom:8px;">检索自测（模拟客服检索）</div>
+              <div class="search-box">
+                <input id="kbSearch" placeholder="输入用户问题，看看会召回哪些片段" />
+                <button class="btn btn-ghost btn-sm" id="kbSearchBtn">检索</button>
+              </div>
+              <div id="kbHits"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-box">
+          <div class="cb-head"><span class="t">文档列表</span><span class="r" id="docCount"></span>
+            <button class="btn btn-ghost btn-sm" id="reindexBtn" style="margin-left:8px;">重建索引</button>
+          </div>
+          <table class="table">
+            <thead><tr><th>文档</th><th>分类</th><th>来源</th><th>片段</th><th>字数</th><th></th></tr></thead>
+            <tbody id="docBody"><tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:30px;">加载中…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="toast-wrap" id="toastWrap"></div>
+<script src="/static/admin.js"></script>
+</body>
+</html>

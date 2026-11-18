@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>星海优选 · 智能客服</title>
+<link rel="stylesheet" href="/static/styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>" />
+</head>
+<body>
+
+<!-- ============ 登录 ============ -->
+<div class="login-wrap" id="loginView">
+  <div class="login-card">
+    <div class="login-hero">
+      <div class="brand">
+        <div class="brand-mark">星</div>
+        <div>星海优选 · 客服中心</div>
+      </div>
+      <div>
+        <h1>会查订单、懂政策，<br />还能自己找人工的客服助手</h1>
+        <p>基于大模型的意图识别与工具调用，覆盖售前咨询、订单物流、退换货与开票全流程。</p>
+      </div>
+      <div class="hero-points">
+        <div><span class="ico">1</span><span>私有知识库本地检索，政策口径统一，不编造条款</span></div>
+        <div><span class="ico">2</span><span>订单 / 物流 / 发票 / 退款四类工具直连业务库</span></div>
+        <div><span class="ico">3</span><span>高额退款自动转人工，审核结果实时回写会话</span></div>
+      </div>
+    </div>
+    <div class="login-form">
+      <h2>登录客服工作台</h2>
+      <div class="sub">使用演示账号体验完整对话与审核流程</div>
+      <form id="loginForm" autocomplete="off">
+        <div class="field">
+          <label for="username">账号</label>
+          <input id="username" name="username" placeholder="请输入用户名" value="user01" />
+        </div>
+        <div class="field">
+          <label for="password">密码</label>
+          <input id="password" name="password" type="password" placeholder="请输入密码" value="user123" />
+        </div>
+        <div class="login-error" id="loginError"></div>
+        <button class="btn btn-primary" id="loginBtn" type="submit" style="width:100%;height:42px;margin-top:6px;">进入工作台</button>
+      </form>
+      <div class="demo-accounts">
+        <p>演示账号（点击自动填充）</p>
+        <div class="row">
+          <button class="demo-chip" data-u="user01" data-p="user123">买家 · 张小明</button>
+          <button class="demo-chip" data-u="user02" data-p="user123">买家 · 李思雨</button>
+          <button class="demo-chip" data-u="admin" data-p="admin123">客服主管 · 王敏</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 工作台 ============ -->
+<div class="app hidden" id="appView">
+  <!-- 侧边栏 -->
+  <aside class="sidebar">
+    <div class="side-top">
+      <div class="side-brand">
+        <div class="mark">星</div>
+        <div>
+          <div class="t1">星海优选</div>
+          <div class="t2">智能客服工作台</div>
+        </div>
+      </div>
+      <button class="new-chat" id="newChatBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+        新建会话
+      </button>
+    </div>
+    <div class="threads-label"><span>会话记录</span><span id="threadCount"></span></div>
+    <div class="thread-list" id="threadList">
+      <div class="thread-empty">还没有会话<br />点击上方按钮开始咨询</div>
+    </div>
+    <div class="side-user">
+      <div class="avatar" id="userAvatar">张</div>
+      <div>
+        <div class="name" id="userName">张小明</div>
+        <div class="meta" id="userMeta">黄金会员</div>
+      </div>
+      <button class="out" id="logoutBtn" title="退出登录">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- 聊天 -->
+  <main class="chat">
+    <header class="chat-head">
+      <div class="msg-avatar ai" style="width:32px;height:32px;">星</div>
+      <div>
+        <div class="title">小星 · 智能客服 <span class="chip" id="modelChip">DeepSeek</span></div>
+        <div class="status"><span class="dot"></span> 在线 · 平均响应 1.2s · 知识库 <span id="kbCount">-</span> 个片段</div>
+      </div>
+      <div class="right">
+        <a class="btn btn-ghost btn-sm" href="/admin" id="adminLink" style="display:none;">管理台</a>
+        <button class="btn btn-ghost btn-sm" id="clearBtn">清空会话</button>
+      </div>
+    </header>
+
+    <div class="messages" id="messages">
+      <div class="welcome" id="welcome">
+        <div class="wm">星</div>
+        <h2>你好，我是小星</h2>
+        <p>可以帮你查订单、跟物流、办退货、开发票，也能解答平台的各项规则。想问点什么？</p>
+        <div class="welcome-grid">
+          <div class="wcard" data-q="查一下我的订单">
+            <div class="wt">📦 订单查询</div>
+            <div class="wd">「查一下我的订单」直接读取你的最新订单</div>
+          </div>
+          <div class="wcard" data-q="内衣拆封了还能退吗？">
+            <div class="wt">📋 政策咨询</div>
+            <div class="wd">检索私有知识库，回答口径与平台政策一致</div>
+          </div>
+          <div class="wcard" data-q="我要退货，订单号 SN20241115003，尺码不合适">
+            <div class="wt">↩️ 售后办理</div>
+            <div class="wd">高额退款自动转人工，体验完整审核流</div>
+          </div>
+          <div class="wcard" data-q="帮我查下发票开好了没">
+            <div class="wt">🧾 发票服务</div>
+            <div class="wd">查询开票状态与可开票金额</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="composer">
+      <div class="composer-inner">
+        <div class="suggest-row hidden" id="suggestRow"></div>
+        <textarea id="input" rows="1" placeholder="描述你的问题，例如：我的订单到哪了？（Enter 发送，Shift+Enter 换行）"></textarea>
+        <div class="composer-bar">
+          <span class="hint">内容由 AI 生成，涉及金额与政策以系统数据为准</span>
+          <button class="send-btn" id="sendBtn" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 右侧 -->
+  <aside class="insight">
+    <div>
+      <h3>本轮处理链路</h3>
+      <div class="trace" id="trace">
+        <div class="trace-item"><span class="trace-dot">1</span><span>意图识别 · 等待输入</span></div>
+        <div class="trace-item"><span class="trace-dot">2</span><span>工具调用 / 知识检索</span></div>
+        <div class="trace-item"><span class="trace-dot">3</span><span>生成结构化答复</span></div>
+      </div>
+    </div>
+    <div>
+      <h3>知识库规模</h3>
+      <div class="kb-stat">
+        <div class="cell"><div class="n" id="statDocs">-</div><div class="l">知识文档</div></div>
+        <div class="cell"><div class="n" id="statChunks">-</div><div class="l">检索片段</div></div>
+      </div>
+    </div>
+    <div>
+      <h3>可体验的能力</h3>
+      <div class="panel-note">
+        · 订单 / 物流 / 发票 / 退款工具调用<br />
+        · 私有知识库 BM25 检索与引用<br />
+        · 高额退款风控转人工审核<br />
+        · 审核结果 WebSocket 实时回写
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

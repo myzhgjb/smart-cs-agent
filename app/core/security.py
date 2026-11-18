@@ -1,158 +1,91 @@
-# app/core/security.py
-import jwt
+"""认证与密码哈希。
+
+上游使用 passlib + bcrypt（bcrypt 对 Python 3.13 的 wheel 兼容性不稳），
+这里改为标准库 hashlib.pbkdf2_hmac，零第三方依赖。
+"""
+import base64
+import hashlib
+import hmac
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import HTTPException, status, Depends
+
+import jwt
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from sqlmodel import Session
+
 from app.core.config import settings
 
-# 设置 Token 获取的 URL
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
-
 ALGORITHM = "HS256"
+_ITERATIONS = 120_000
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_PREFIX}/auth/login", auto_error=False)
 
 
+# ============================================================
+# 密码
+# ============================================================
+def hash_password(password: str) -> str:
+    salt = os.urandom(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, _ITERATIONS)
+    return "pbkdf2_sha256${}${}${}".format(
+        _ITERATIONS,
+        base64.b64encode(salt).decode(),
+        base64.b64encode(digest).decode(),
+    )
+
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        algorithm, iterations, salt_b64, digest_b64 = stored.split("$")
+        if algorithm != "pbkdf2_sha256":
+            return False
+        salt = base64.b64decode(salt_b64)
+        expected = base64.b64decode(digest_b64)
+        actual = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, int(iterations))
+        return hmac.compare_digest(expected, actual)
+    except Exception:
+        return False
+
+
+# ============================================================
+# JWT
+# ============================================================
 def create_access_token(user_id: int, is_admin: bool = False) -> str:
-    """
-    生成 JWT Token
-    
-    Args: 
-        user_id: 用户ID
-        is_admin:  是否为管理员
-    """
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode = {
-        "sub": str(user_id), 
+    payload = {
+        "sub": str(user_id),
+        "is_admin": is_admin,
         "exp": expire,
         "iat": datetime.now(timezone.utc),
-        "is_admin": is_admin,  # v4.0 新增：区分管理员权限
     }
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
+
+
+def decode_token(token: str) -> Optional[dict]:
+    try:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.PyJWTError:
+        return None
 
 
 def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
-    """
-    FastAPI 依赖项：验证 Token 并提取 user_id
-    """
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token",
+            detail="未登录或登录已过期",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        
-        if user_id is None: 
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token:  missing user ID",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        return int(user_id)
-    
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-async def get_current_user_id_ws(token: str) -> int:
-    """
-    WebSocket Token 验证 (异步版本)
-    
-    Args:
-        token: JWT Token 字符串
-    
-    Returns:
-        user_id: 用户ID
-    
-    Raises:
-        HTTPException: Token 无效时抛出
-    """
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token"
-        )
-    
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        
-        if user_id is None: 
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token: missing user ID"
-            )
-        
-        return int(user_id)
-    
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired"
-        )
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
-        )
+    payload = decode_token(token)
+    if not payload or not payload.get("sub"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录凭证无效")
+    return int(payload["sub"])
 
 
 def get_admin_user_id(token: str = Depends(oauth2_scheme)) -> int:
-    """
-    管理员认证依赖项
-    
-    验证 Token 并检查管理员权限
-    """
-    if not token: 
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        is_admin: bool = payload.get("is_admin", False)
-        
-        if user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token: missing user ID",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        if not is_admin:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin privileges required"
-            )
-        
-        return int(user_id)
-    
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    user_id = get_current_user_id(token)
+    payload = decode_token(token) or {}
+    if not payload.get("is_admin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")
+    return user_id
