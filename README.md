@@ -7,13 +7,19 @@
 - 客服端：http://127.0.0.1:8000
 - 运营后台：http://127.0.0.1:8000/admin
 
+**在线演示（无需安装）**：https://jobfair-apply-board.app.workbuddy.host/?sharecode=BSFMZKEOSM
+
 | 角色 | 账号 | 密码 |
 | --- | --- | --- |
 | 买家（黄金会员） | `user01` | `user123` |
 | 买家（白银会员） | `user02` | `user123` |
 | 客服主管 | `admin` | `admin123` |
 
-> 仓库地址：https://github.com/myzhgjb/smart-cs-agent ｜ 以下截图均为本机实际运行抓取（1440×1000），非设计稿。
+> 仓库地址：https://github.com/myzhgjb/smart-cs-agent
+>
+> 在线演示：https://jobfair-apply-board.app.workbuddy.host/?sharecode=BSFMZKEOSM （客服端 / 商城 / 管理台同域）
+>
+> 截图均为本机实际运行抓取（1440×1000），非设计稿。
 
 ---
 
@@ -191,7 +197,16 @@ start.bat            # Windows 双击即可
 
 首次启动会自动：建表 → 写入演示用户/订单/发票 → 解析 `data/knowledge/*.md` → 建立 BM25 索引。
 
-### 4. 重置数据
+### 4. 云端部署说明
+
+线上版本与本机同一套代码，运行在单端口沙箱里（SQLite 随项目走，无外部数据库）。两点差异：
+
+- 沙箱网关要求所有请求带 `?sharecode=`，因此前端统一通过 `apiUrl()` 透传分享码；
+- 网关会注入自己的 `Authorization` 头，所以鉴权改为 `X-Auth-Token`（仍兼容标准 Bearer）。
+
+为保证公开演示不被刷接口，对话接口限制为每人 10 分钟 30 条；重新部署会用仓库里的 `data/app.db` 快照覆盖线上数据。
+
+### 5. 重置数据
 
 删除 `data/app.db` 后重启即可重新初始化（知识文档不丢失）。
 

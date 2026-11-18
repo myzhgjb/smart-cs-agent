@@ -2,6 +2,15 @@
    星海优选 · 商城前台
    ============================================================ */
 const API = "/api/v1";
+
+const SHARE = new URLSearchParams(location.search).get("sharecode") || "";
+
+/** 云端发布后网关要求每个请求带 sharecode，这里统一透传 */
+function apiUrl(path) {
+  if (!SHARE) return API + path;
+  return API + path + (path.includes("?") ? "&" : "?") + "sharecode=" + encodeURIComponent(SHARE);
+}
+
 const $ = (id) => document.getElementById(id);
 
 const state = {
@@ -39,12 +48,12 @@ function money(n) {
 
 async function api(path, options = {}) {
   const headers = Object.assign({}, options.headers || {});
-  if (state.token) headers["Authorization"] = "Bearer " + state.token;
+  if (state.token) headers["X-Auth-Token"] = state.token;
   if (options.body && !(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
     if (typeof options.body !== "string") options.body = JSON.stringify(options.body);
   }
-  const res = await fetch(API + path, { ...options, headers });
+  const res = await fetch(apiUrl(path), { ...options, headers });
   if (res.status === 401) {
     localStorage.removeItem("cs_token");
     location.href = "/";
@@ -81,6 +90,18 @@ $("logoutBtn").addEventListener("click", () => {
   localStorage.removeItem("cs_token");
   localStorage.removeItem("cs_user");
   location.href = "/";
+});
+
+
+/** 云端分享链接：内部跳转、静态资源地址统一带上 sharecode */
+function rootUrl(path) {
+  if (!SHARE) return path;
+  return path + (path.includes("?") ? "&" : "?") + "sharecode=" + encodeURIComponent(SHARE);
+}
+
+document.querySelectorAll('a[href^="/"]').forEach((a) => {
+  const href = a.getAttribute("href");
+  if (href && !href.includes("sharecode")) a.setAttribute("href", rootUrl(href));
 });
 
 /* ---------------- 视图切换 ---------------- */
@@ -546,5 +567,5 @@ async function loadOrders() {
 
 /* ---------------- 跳转客服 ---------------- */
 function ask(question) {
-  location.href = "/?ask=" + encodeURIComponent(question);
+  location.href = rootUrl("/?ask=" + encodeURIComponent(question));
 }

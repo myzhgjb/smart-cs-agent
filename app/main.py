@@ -82,6 +82,12 @@ async def shop_page():
     return FileResponse(FRONTEND_DIR / "shop.html")
 
 
+@app.get("/board", include_in_schema=False)
+async def board_page():
+    """11.18 招聘会投递看板（并入同一服务，保持旧链接可用）。"""
+    return FileResponse(FRONTEND_DIR / "board.html")
+
+
 @app.get("/health")
 async def health():
     async with async_session_maker() as session:

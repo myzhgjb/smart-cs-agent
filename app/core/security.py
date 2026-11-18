@@ -11,16 +11,30 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlmodel import Session
+from fastapi import Depends, HTTPException, Request, status
 
 from app.core.config import settings
 
 ALGORITHM = "HS256"
 _ITERATIONS = 120_000
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_PREFIX}/auth/login", auto_error=False)
+def extract_token(request: Request) -> str:
+    """兼容三种取 token 方式。
+
+    云端网关会覆盖 Authorization 头，所以前端优先用 X-Auth-Token；
+    本地开发仍支持标准 Bearer；WebSocket 用查询参数。
+    """
+    # 注意顺序：云端网关会注入自己的 Authorization 头，必须优先读我们自己的凭证
+    custom = request.headers.get("x-auth-token")
+    if custom:
+        return custom.strip()
+    query_token = (request.query_params.get("token") or "").strip()
+    if query_token:
+        return query_token
+    auth = request.headers.get("authorization") or ""
+    if auth.lower().startswith("bearer "):
+        return auth[7:].strip()
+    return ""
 
 
 # ============================================================
@@ -70,7 +84,8 @@ def decode_token(token: str) -> Optional[dict]:
         return None
 
 
-def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
+def get_current_user_id(request: Request) -> int:
+    token = extract_token(request)
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -83,8 +98,9 @@ def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
     return int(payload["sub"])
 
 
-def get_admin_user_id(token: str = Depends(oauth2_scheme)) -> int:
-    user_id = get_current_user_id(token)
+def get_admin_user_id(request: Request) -> int:
+    token = extract_token(request)
+    user_id = get_current_user_id(request)
     payload = decode_token(token) or {}
     if not payload.get("is_admin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")

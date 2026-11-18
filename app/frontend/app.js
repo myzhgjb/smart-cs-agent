@@ -2,6 +2,15 @@
    星海优选 · 智能客服前端
    ============================================================ */
 const API = "/api/v1";
+
+const SHARE = new URLSearchParams(location.search).get("sharecode") || "";
+
+/** 云端发布后网关要求每个请求带 sharecode，这里统一透传 */
+function apiUrl(path) {
+  if (!SHARE) return API + path;
+  return API + path + (path.includes("?") ? "&" : "?") + "sharecode=" + encodeURIComponent(SHARE);
+}
+
 const TOKEN_KEY = "cs_token";
 const USER_KEY = "cs_user";
 
@@ -55,12 +64,12 @@ function renderMarkdown(text) {
 
 async function api(path, options = {}) {
   const headers = Object.assign({}, options.headers || {});
-  if (state.token) headers["Authorization"] = "Bearer " + state.token;
+  if (state.token) headers["X-Auth-Token"] = state.token;
   if (options.body && !(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
     if (typeof options.body !== "string") options.body = JSON.stringify(options.body);
   }
-  const res = await fetch(API + path, { ...options, headers });
+  const res = await fetch(apiUrl(path), { ...options, headers });
   if (res.status === 401) {
     logout();
     throw new Error("登录已过期，请重新登录");
@@ -145,7 +154,7 @@ function enterApp() {
 
 async function loadStats() {
   try {
-    const health = await fetch("/health").then((r) => r.json());
+    const health = await fetch(rootUrl("/health")).then((r) => r.json());
     $("kbCount").textContent = health.kb_chunks ?? "-";
     $("statChunks").textContent = health.kb_chunks ?? "-";
     $("modelChip").textContent = health.llm === "deepseek-v4-pro" ? "DeepSeek Pro" : "DeepSeek Flash";
@@ -435,11 +444,11 @@ async function send() {
   updateTrace("分析中");
 
   try {
-    const res = await fetch(`${API}/chat/stream`, {
+    const res = await fetch(apiUrl("/chat/stream"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + state.token,
+        "X-Auth-Token": state.token,
       },
       body: JSON.stringify({ question, thread_id: state.threadId }),
     });
@@ -541,7 +550,7 @@ function connectWs() {
   if (!state.token) return;
   const proto = location.protocol === "https:" ? "wss" : "ws";
   try {
-    state.ws = new WebSocket(`${proto}://${location.host}${API}/ws?token=${encodeURIComponent(state.token)}`);
+    state.ws = new WebSocket(`${proto}://${location.host}${apiUrl(`/ws?token=${encodeURIComponent(state.token)}`)}`);
     state.ws.onmessage = (e) => {
       let data;
       try { data = JSON.parse(e.data); } catch (err) { return; }
@@ -557,6 +566,18 @@ function connectWs() {
   } catch (e) {}
 }
 
+
+/** 云端分享链接：内部跳转、静态资源地址统一带上 sharecode */
+function rootUrl(path) {
+  if (!SHARE) return path;
+  return path + (path.includes("?") ? "&" : "?") + "sharecode=" + encodeURIComponent(SHARE);
+}
+
+document.querySelectorAll('a[href^="/"]').forEach((a) => {
+  const href = a.getAttribute("href");
+  if (href && !href.includes("sharecode")) a.setAttribute("href", rootUrl(href));
+});
+
 /* ---------------- 启动 ---------------- */
 (async function boot() {
   bindWelcomeCards(document);
@@ -568,7 +589,7 @@ function connectWs() {
     enterApp();
     const ask = new URLSearchParams(location.search).get("ask");
     if (ask) {
-      history.replaceState(null, "", "/");
+      history.replaceState(null, "", rootUrl("/"));
       input.value = ask;
       input.dispatchEvent(new Event("input"));
       setTimeout(() => send(), 260);

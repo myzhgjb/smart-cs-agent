@@ -1,5 +1,7 @@
 """会话接口：SSE 流式对话 + 会话列表 + 历史消息。"""
 import json
+import time
+from collections import defaultdict, deque
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -15,6 +17,24 @@ from app.models import ConversationLog
 
 router = APIRouter()
 
+# 公网演示限流：每人 10 分钟 30 条，防止有人刷接口消耗模型额度
+_RATE_LIMIT = 30
+_RATE_WINDOW = 600
+_buckets: dict[int, deque] = defaultdict(deque)
+
+
+def _check_rate(user_id: int) -> None:
+    now = time.time()
+    q = _buckets[user_id]
+    while q and now - q[0] > _RATE_WINDOW:
+        q.popleft()
+    if len(q) >= _RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail="演示环境已限流：每人 10 分钟最多 30 条消息，请稍后再试。",
+        )
+    q.append(now)
+
 
 class ChatRequest(BaseModel):
     question: str
@@ -23,6 +43,8 @@ class ChatRequest(BaseModel):
 
 @router.post("/chat/stream")
 async def chat_stream(body: ChatRequest, user_id: int = Depends(get_current_user_id)):
+    _check_rate(user_id)
+
     async def event_generator():
         try:
             async for event in stream_turn(user_id, body.thread_id, body.question):

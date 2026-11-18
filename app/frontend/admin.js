@@ -2,6 +2,15 @@
    管理台
    ============================================================ */
 const API = "/api/v1";
+
+const SHARE = new URLSearchParams(location.search).get("sharecode") || "";
+
+/** 云端发布后网关要求每个请求带 sharecode，这里统一透传 */
+function apiUrl(path) {
+  if (!SHARE) return API + path;
+  return API + path + (path.includes("?") ? "&" : "?") + "sharecode=" + encodeURIComponent(SHARE);
+}
+
 const $ = (id) => document.getElementById(id);
 
 const state = {
@@ -34,15 +43,15 @@ function esc(t) {
 
 async function api(path, options = {}) {
   const headers = Object.assign({}, options.headers || {});
-  if (state.token) headers["Authorization"] = "Bearer " + state.token;
+  if (state.token) headers["X-Auth-Token"] = state.token;
   if (options.body && !(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
     if (typeof options.body !== "string") options.body = JSON.stringify(options.body);
   }
-  const res = await fetch(API + path, { ...options, headers });
+  const res = await fetch(apiUrl(path), { ...options, headers });
   if (res.status === 401 || res.status === 403) {
     localStorage.removeItem("cs_token");
-    location.href = "/";
+    location.href = rootUrl("/");
     throw new Error("无权限访问");
   }
   if (!res.ok) {
@@ -53,17 +62,29 @@ async function api(path, options = {}) {
   return res.json();
 }
 
+
+/** 云端分享链接：内部跳转、静态资源地址统一带上 sharecode */
+function rootUrl(path) {
+  if (!SHARE) return path;
+  return path + (path.includes("?") ? "&" : "?") + "sharecode=" + encodeURIComponent(SHARE);
+}
+
+document.querySelectorAll('a[href^="/"]').forEach((a) => {
+  const href = a.getAttribute("href");
+  if (href && !href.includes("sharecode")) a.setAttribute("href", rootUrl(href));
+});
+
 /* ---------------- 初始化 ---------------- */
 (async function init() {
   if (!state.token) {
-    location.href = "/";
+    location.href = rootUrl("/");
     return;
   }
   try {
     const me = await api("/auth/me");
     if (!me.is_admin) {
       toast("该账号无管理权限", "err");
-      setTimeout(() => (location.href = "/"), 900);
+      setTimeout(() => (location.href = rootUrl("/")), 900);
       return;
     }
     state.user = me;
@@ -84,7 +105,7 @@ async function api(path, options = {}) {
 $("adminLogout").addEventListener("click", () => {
   localStorage.removeItem("cs_token");
   localStorage.removeItem("cs_user");
-  location.href = "/";
+  location.href = rootUrl("/");
 });
 
 /* ---------------- Tabs ---------------- */
@@ -410,7 +431,7 @@ async function doSearch() {
 function connectWs() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   try {
-    state.ws = new WebSocket(`${proto}://${location.host}${API}/ws?token=${encodeURIComponent(state.token)}`);
+    state.ws = new WebSocket(`${proto}://${location.host}${apiUrl(`/ws?token=${encodeURIComponent(state.token)}`)}`);
     state.ws.onmessage = (e) => {
       let data;
       try { data = JSON.parse(e.data); } catch (err) { return; }
