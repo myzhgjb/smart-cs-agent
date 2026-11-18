@@ -19,28 +19,47 @@
 
 ## 界面预览
 
-<table>
-  <tr>
-    <td width="50%"><img src="https://raw.githubusercontent.com/myzhgjb/smart-cs-agent/main/docs/screenshots/01-chat.png" alt="智能客服对话" /><br/><sub><b>客服端</b>：意图识别 → 知识检索 / 工具调用 → 流式回答，右侧展示处理链路与知识库规模</sub></td>
-    <td width="50%"><img src="https://raw.githubusercontent.com/myzhgjb/smart-cs-agent/main/docs/screenshots/02-shop.png" alt="商城前台" /><br/><sub><b>商城前台</b>：分类、搜索、排序与商品卡片，价格库存与客服共用一份数据</sub></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/myzhgjb/smart-cs-agent/main/docs/screenshots/03-product.png" alt="商品详情" /><br/><sub><b>商品详情</b>：卖点、参数、标签、库存与评分，可直接加入购物车或问客服</sub></td>
-    <td><img src="https://raw.githubusercontent.com/myzhgjb/smart-cs-agent/main/docs/screenshots/04-cart.png" alt="购物车" /><br/><sub><b>购物车抽屉</b>：改数量、移除、实时小计，服务端持久化</sub></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/myzhgjb/smart-cs-agent/main/docs/screenshots/05-orders.png" alt="我的订单" /><br/><sub><b>我的订单</b>：状态、明细、物流单号，一键「咨询客服 / 申请退货」</sub></td>
-    <td><img src="https://raw.githubusercontent.com/myzhgjb/smart-cs-agent/main/docs/screenshots/06-admin-audit.png" alt="人工审核" /><br/><sub><b>人工审核</b>：风控触发规则、订单与退款对照、一键通过或驳回</sub></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/myzhgjb/smart-cs-agent/main/docs/screenshots/07-admin-products.png" alt="商品管理" /><br/><sub><b>商品管理</b>：新增、编辑、上下架，改价改库存即时生效</sub></td>
-    <td><img src="https://raw.githubusercontent.com/myzhgjb/smart-cs-agent/main/docs/screenshots/08-admin-orders.png" alt="订单管理" /><br/><sub><b>订单管理</b>：状态筛选、订单号/买家搜索、一键发货生成运单号</sub></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/myzhgjb/smart-cs-agent/main/docs/screenshots/09-admin-kb.png" alt="私有知识库" /><br/><sub><b>私有知识库</b>：上传 PDF/DOCX/MD/TXT，自动切分入库，可检索自测</sub></td>
-    <td><img src="https://raw.githubusercontent.com/myzhgjb/smart-cs-agent/main/docs/screenshots/10-admin-replay.png" alt="会话回放" /><br/><sub><b>会话回放</b>：全量会话、意图标签、知识引用与系统通知</sub></td>
-  </tr>
-</table>
+> 截图均为本机实际运行抓取（1440×1000），非设计稿。
+
+**客服端** · 意图识别 → 知识检索 / 工具调用 → 流式回答，右侧实时展示处理链路
+
+![智能客服对话](docs/screenshots/01-chat.png)
+
+**商城前台** · 分类、搜索、排序与商品卡片，价格库存与客服共用一份数据
+
+![商城前台](docs/screenshots/02-shop.png)
+
+**商品详情** · 卖点、参数、标签、库存与评分，可直接加购或问客服
+
+![商品详情](docs/screenshots/03-product.png)
+
+**购物车** · 改数量、移除、实时小计，服务端持久化
+
+![购物车](docs/screenshots/04-cart.png)
+
+**我的订单** · 状态、明细、物流单号，一键「咨询客服 / 申请退货」
+
+![我的订单](docs/screenshots/05-orders.png)
+
+**人工审核** · 风控触发规则、订单与退款对照、一键通过或驳回
+
+![人工审核](docs/screenshots/06-admin-audit.png)
+
+**商品管理** · 新增、编辑、上下架，改价改库存即时生效
+
+![商品管理](docs/screenshots/07-admin-products.png)
+
+**订单管理** · 状态筛选、订单号/买家搜索、一键发货生成运单号
+
+![订单管理](docs/screenshots/08-admin-orders.png)
+
+**私有知识库** · 上传 PDF/DOCX/MD/TXT，自动切分入库，可检索自测
+
+![私有知识库](docs/screenshots/09-admin-kb.png)
+
+**会话回放** · 全量会话、意图标签、知识引用与系统通知
+
+![会话回放](docs/screenshots/10-admin-replay.png)
 
 ---
 
