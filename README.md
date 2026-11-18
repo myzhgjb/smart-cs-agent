@@ -19,47 +19,47 @@
 
 ## 界面预览
 
-> 截图均为本机实际运行抓取（1440×1000），非设计稿。
+> 截图均为本机实际运行抓取（1440×1000），非设计稿。图片走 jsDelivr CDN，若加载失败可直接查看仓库 `docs/screenshots/` 目录。
 
 **客服端** · 意图识别 → 知识检索 / 工具调用 → 流式回答，右侧实时展示处理链路
 
-![智能客服对话](docs/screenshots/01-chat.png)
+![智能客服对话](https://gcore.jsdelivr.net/gh/myzhgjb/smart-cs-agent@main/docs/screenshots/01-chat.png)
 
 **商城前台** · 分类、搜索、排序与商品卡片，价格库存与客服共用一份数据
 
-![商城前台](docs/screenshots/02-shop.png)
+![商城前台](https://gcore.jsdelivr.net/gh/myzhgjb/smart-cs-agent@main/docs/screenshots/02-shop.png)
 
 **商品详情** · 卖点、参数、标签、库存与评分，可直接加购或问客服
 
-![商品详情](docs/screenshots/03-product.png)
+![商品详情](https://gcore.jsdelivr.net/gh/myzhgjb/smart-cs-agent@main/docs/screenshots/03-product.png)
 
 **购物车** · 改数量、移除、实时小计，服务端持久化
 
-![购物车](docs/screenshots/04-cart.png)
+![购物车](https://gcore.jsdelivr.net/gh/myzhgjb/smart-cs-agent@main/docs/screenshots/04-cart.png)
 
 **我的订单** · 状态、明细、物流单号，一键「咨询客服 / 申请退货」
 
-![我的订单](docs/screenshots/05-orders.png)
+![我的订单](https://gcore.jsdelivr.net/gh/myzhgjb/smart-cs-agent@main/docs/screenshots/05-orders.png)
 
 **人工审核** · 风控触发规则、订单与退款对照、一键通过或驳回
 
-![人工审核](docs/screenshots/06-admin-audit.png)
+![人工审核](https://gcore.jsdelivr.net/gh/myzhgjb/smart-cs-agent@main/docs/screenshots/06-admin-audit.png)
 
 **商品管理** · 新增、编辑、上下架，改价改库存即时生效
 
-![商品管理](docs/screenshots/07-admin-products.png)
+![商品管理](https://gcore.jsdelivr.net/gh/myzhgjb/smart-cs-agent@main/docs/screenshots/07-admin-products.png)
 
 **订单管理** · 状态筛选、订单号/买家搜索、一键发货生成运单号
 
-![订单管理](docs/screenshots/08-admin-orders.png)
+![订单管理](https://gcore.jsdelivr.net/gh/myzhgjb/smart-cs-agent@main/docs/screenshots/08-admin-orders.png)
 
 **私有知识库** · 上传 PDF/DOCX/MD/TXT，自动切分入库，可检索自测
 
-![私有知识库](docs/screenshots/09-admin-kb.png)
+![私有知识库](https://gcore.jsdelivr.net/gh/myzhgjb/smart-cs-agent@main/docs/screenshots/09-admin-kb.png)
 
 **会话回放** · 全量会话、意图标签、知识引用与系统通知
 
-![会话回放](docs/screenshots/10-admin-replay.png)
+![会话回放](https://gcore.jsdelivr.net/gh/myzhgjb/smart-cs-agent@main/docs/screenshots/10-admin-replay.png)
 
 ---
 
