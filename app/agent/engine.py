@@ -35,6 +35,7 @@ INTENT_LABEL = {
     "REFUND_STATUS": "退款进度",
     "INVOICE": "发票服务",
     "POLICY": "政策咨询",
+    "PRODUCT": "商品咨询",
     "HUMAN": "转人工",
     "OTHER": "综合咨询",
 }
@@ -46,12 +47,14 @@ SUGGESTIONS = {
     "REFUND_STATUS": ["退货运费谁承担？", "我要修改收货地址"],
     "INVOICE": ["发票多久能开好？", "查一下我的订单"],
     "POLICY": ["我要退货", "查一下我的订单", "物流到哪了"],
+    "PRODUCT": ["这款有现货吗？", "支持七天无理由退货吗？", "帮我查一下物流"],
     "OTHER": ["查一下我的订单", "退换货政策是什么？", "怎么开发票？"],
 }
 
 _REFUND_KW = ("退货", "退款", "换货", "退掉", "不要了")
 _REFUND_STATUS_KW = ("退款进度", "申请进度", "审核进度", "退款到哪", "退款状态", "审核结果")
 _HUMAN_KW = ("转人工", "人工客服", "找客服", "真人客服", "投诉", "转接")
+_PRODUCT_KW = ("库存", "有货", "还有吗", "这款", "多少钱", "什么价", "适合", "参数", "规格", "尺码怎么选", "买哪个")
 _INVOICE_KW = ("发票", "开票", "抬头", "税号")
 _LOGISTICS_KW = ("物流", "快递", "到哪", "什么时候发", "发货了吗", "签收", "配送", "运单")
 _ORDER_KW = ("订单", "我买的", "单号", "查单", "买了什么", "订单号")
@@ -85,6 +88,9 @@ async def classify(question: str, history: List[dict]) -> Dict[str, Optional[str
         return {"intent": "LOGISTICS", "order_sn": order_sn, "reason": None}
     if any(k in text for k in _ORDER_KW):
         return {"intent": "ORDER", "order_sn": order_sn, "reason": None}
+
+    if any(k in text for k in _PRODUCT_KW):
+        return {"intent": "PRODUCT", "order_sn": order_sn, "reason": None}
 
     # 交给模型兜底
     try:
@@ -389,6 +395,17 @@ async def stream_turn(user_id: int, thread_id: str, question: str) -> AsyncItera
             persisted_sources = _sources_payload(hits)
             yield {"type": "sources", "sources": persisted_sources}
             context_parts.extend(f"[售后政策{i + 1}] {h.chunk.content}" for i, h in enumerate(hits))
+
+    elif intent == "PRODUCT":
+        async with async_session_maker() as session:
+            res = await tools.query_product(session, question)
+        context_parts.append(res.context)
+        card = res.card
+        hits = _retrieve(f"商品 选购 {question} 尺码 材质 适用")
+        if hits:
+            persisted_sources = _sources_payload(hits)
+            yield {"type": "sources", "sources": persisted_sources}
+            context_parts.extend(f"[选购参考{i + 1}] {h.chunk.content}" for i, h in enumerate(hits))
 
     elif intent == "HUMAN":
         answer = (

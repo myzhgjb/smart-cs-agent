@@ -196,3 +196,39 @@ class ConversationLog(SQLModel, table=True):
     sources: List[Dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
     extra: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     created_at: NaiveDatetime = Field(default_factory=utcnow, index=True)
+
+
+# ============================================================
+# 商城：商品 / 购物车（订单复用 orders 表，客服可直接查询）
+# ============================================================
+class Product(SQLModel, table=True):
+    __tablename__ = "products"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    sku: str = Field(index=True, unique=True, max_length=32)
+    name: str = Field(max_length=120)
+    category: str = Field(default="数码影音", max_length=30, index=True)
+    price: float = Field(default=0.0)
+    original_price: Optional[float] = Field(default=None)
+    stock: int = Field(default=0)
+    unit: str = Field(default="件", max_length=10)
+    emoji: str = Field(default="📦", max_length=8)
+    gradient: str = Field(default="linear-gradient(135deg,#eef2ff,#c7d2fe)", max_length=120)
+    summary: str = Field(default="", max_length=120)
+    description: str = Field(default="", sa_column=Column(Text))
+    tags: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    sales: int = Field(default=0)
+    rating: float = Field(default=4.8)
+    is_active: bool = Field(default=True, index=True)
+    sort: int = Field(default=0)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
+class CartItem(SQLModel, table=True):
+    __tablename__ = "cart_items"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True, foreign_key="users.id")
+    product_id: int = Field(index=True, foreign_key="products.id")
+    qty: int = Field(default=1)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)

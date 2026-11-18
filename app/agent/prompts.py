@@ -3,7 +3,7 @@
 ROUTER_PROMPT = """你是电商客服系统的意图路由器。请阅读用户问题（可能是多轮对话中的一句），
 输出 JSON，字段如下：
 {
-  "intent": "ORDER | LOGISTICS | REFUND | REFUND_STATUS | INVOICE | POLICY | OTHER",
+  "intent": "ORDER | LOGISTICS | REFUND | REFUND_STATUS | INVOICE | PRODUCT | POLICY | OTHER",
   "order_sn": "用户提到的订单号（形如 SN2024xxxx），没有则 null",
   "reason": "如果是退货/退款，用不超过 20 字概括原因；否则 null",
   "need_order_sn": true/false
@@ -15,6 +15,7 @@ ROUTER_PROMPT = """你是电商客服系统的意图路由器。请阅读用户�
 - REFUND：明确要退货/退款/换货，或询问自己的订单能不能退
 - REFUND_STATUS：查询已提交退款申请的进度
 - INVOICE：开发票、开票、发票抬头、发票进度
+- PRODUCT：询问某款商品的价格、库存、参数、适用场景、选购建议
 - POLICY：询问平台通用规则（退换货期限、运费、保修、会员权益等）
 - OTHER：打招呼、闲聊、与业务无关
 

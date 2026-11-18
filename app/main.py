@@ -13,6 +13,7 @@ from sqlmodel import func, select
 from app.api import admin as admin_api
 from app.api import auth as auth_api
 from app.api import chat as chat_api
+from app.api import mall as mall_api
 from app.api import ws as ws_api
 from app.core.config import BASE_DIR, settings
 from app.core.db import async_session_maker, init_db
@@ -20,6 +21,7 @@ from app.models import KnowledgeChunk, KnowledgeDoc
 from app.rag.bm25 import index
 from app.rag.ingest import ingest_directory, refresh_index
 from app.seed import ensure_seed
+from app.seed_products import ensure_products
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -28,6 +30,9 @@ FRONTEND_DIR = Path(__file__).parent / "frontend"
 async def lifespan(app: FastAPI):
     await init_db()
     seeded = await ensure_seed()
+    added_products = await ensure_products()
+    if added_products:
+        print(f"[Seed] 已写入 {added_products} 个商品")
 
     async with async_session_maker() as session:
         doc_count = (await session.exec(select(func.count()).select_from(KnowledgeDoc))).one()
@@ -56,7 +61,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for router in (auth_api.router, chat_api.router, admin_api.router, ws_api.router):
+for router in (auth_api.router, chat_api.router, mall_api.router, admin_api.router, ws_api.router):
     app.include_router(router, prefix=settings.API_PREFIX)
 
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
@@ -70,6 +75,11 @@ async def home():
 @app.get("/admin", include_in_schema=False)
 async def admin_page():
     return FileResponse(FRONTEND_DIR / "admin.html")
+
+
+@app.get("/shop", include_in_schema=False)
+async def shop_page():
+    return FileResponse(FRONTEND_DIR / "shop.html")
 
 
 @app.get("/health")

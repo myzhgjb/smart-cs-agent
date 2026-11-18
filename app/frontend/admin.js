@@ -11,6 +11,8 @@ const state = {
   activeAudit: null,
   sessions: [],
   activeSession: null,
+  products: [],
+  orders: [],
   ws: null,
 };
 
@@ -74,6 +76,8 @@ async function api(path, options = {}) {
   loadAudits();
   loadDocs();
   loadSessions();
+  loadProducts();
+  loadOrders();
   connectWs();
 })();
 
@@ -88,9 +92,11 @@ document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
     tab.classList.add("active");
-    ["audits", "sessions", "kb"].forEach((name) => {
+    ["audits", "sessions", "kb", "products", "orders"].forEach((name) => {
       $("tab-" + name).classList.toggle("hidden", name !== tab.dataset.tab);
     });
+    if (tab.dataset.tab === "products") loadProducts();
+    if (tab.dataset.tab === "orders") loadOrders();
   });
 });
 
@@ -421,3 +427,242 @@ function connectWs() {
     state.ws.onclose = () => setTimeout(() => { if (state.token) connectWs(); }, 4000);
   } catch (e) {}
 }
+
+
+/* ============================================================
+   商品管理
+   ============================================================ */
+const CATEGORIES = ["数码影音", "家用电器", "家居生活", "服饰鞋包", "其他"];
+const GRADIENTS = [
+  "linear-gradient(135deg,#eef2ff,#c7d2fe)",
+  "linear-gradient(135deg,#ecfeff,#a5f3fc)",
+  "linear-gradient(135deg,#fffbeb,#fde68a)",
+  "linear-gradient(135deg,#fff1f2,#fecdd3)",
+  "linear-gradient(135deg,#ecfdf5,#a7f3d0)",
+];
+
+async function loadProducts() {
+  try {
+    state.products = await api("/admin/products");
+    $("pCount").textContent = state.products.length + " 个商品";
+    const body = $("pBody");
+    if (!state.products.length) {
+      body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:30px;">暂无商品</td></tr>';
+      return;
+    }
+    body.innerHTML = state.products
+      .map(
+        (p) => `
+      <tr>
+        <td>
+          <div class="p-cell">
+            <div class="p-thumb" style="background:${esc(p.gradient)}">${p.emoji}</div>
+            <div><div class="nm">${esc(p.name)}</div><div class="sk">${esc(p.sku)}</div></div>
+          </div>
+        </td>
+        <td><span class="chip gray">${esc(p.category)}</span></td>
+        <td class="mono">¥${Number(p.price).toFixed(2)}</td>
+        <td class="mono" style="${p.stock < 20 ? "color:var(--red);" : ""}">${p.stock}</td>
+        <td class="mono">${p.sales}</td>
+        <td>${p.is_active ? '<span class="chip green">在售</span>' : '<span class="chip gray">已下架</span>'}</td>
+        <td>
+          <div class="ops">
+            <button class="row-link" data-edit="${p.id}">编辑</button>
+            <button class="row-link" data-toggle="${p.id}" style="color:${p.is_active ? "var(--red)" : "var(--brand)"};">${p.is_active ? "下架" : "上架"}</button>
+          </div>
+        </td>
+      </tr>`
+      )
+      .join("");
+
+    body.querySelectorAll("[data-edit]").forEach((btn) =>
+      btn.addEventListener("click", () => openProductForm(Number(btn.dataset.edit)))
+    );
+    body.querySelectorAll("[data-toggle]").forEach((btn) =>
+      btn.addEventListener("click", () => toggleProduct(Number(btn.dataset.toggle)))
+    );
+  } catch (e) {
+    toast(e.message, "err");
+  }
+}
+
+async function toggleProduct(id) {
+  const p = state.products.find((x) => x.id === id);
+  if (!p) return;
+  try {
+    await api(`/admin/products/${id}`, { method: "PATCH", body: { is_active: !p.is_active } });
+    toast(p.is_active ? "已下架" : "已上架", "ok");
+    loadProducts();
+  } catch (e) {
+    toast(e.message, "err");
+  }
+}
+
+function openProductForm(id) {
+  const p = id ? state.products.find((x) => x.id === id) : null;
+  const isEdit = Boolean(p);
+  const data = p || {
+    name: "",
+    category: "数码影音",
+    price: "",
+    original_price: "",
+    stock: 100,
+    emoji: "📦",
+    summary: "",
+    description: "",
+    tags: [],
+    is_active: true,
+  };
+
+  $("pModalBox").innerHTML = `
+    <button class="modal-close" id="pClose">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <div class="modal-head"><h3>${isEdit ? "编辑商品" : "新增商品"}</h3>${isEdit ? `<span class="chip gray">${esc(p.sku)}</span>` : ""}</div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field full"><label>商品名称</label><input id="fName" value="${esc(data.name)}" placeholder="例如：星海 无线降噪耳机" /></div>
+        <div class="field"><label>分类</label>
+          <select id="fCategory">${CATEGORIES.map((c) => `<option ${c === data.category ? "selected" : ""}>${c}</option>`).join("")}</select>
+        </div>
+        <div class="field"><label>图标（emoji）</label><input id="fEmoji" value="${esc(data.emoji)}" maxlength="4" /></div>
+        <div class="field"><label>售价（元）</label><input id="fPrice" type="number" step="0.01" value="${data.price}" /></div>
+        <div class="field"><label>划线价（选填）</label><input id="fOriginal" type="number" step="0.01" value="${data.original_price ?? ""}" /></div>
+        <div class="field"><label>库存</label><input id="fStock" type="number" value="${data.stock}" /></div>
+        <div class="field"><label>上架状态</label>
+          <select id="fActive"><option value="1" ${data.is_active ? "selected" : ""}>在售</option><option value="0" ${!data.is_active ? "selected" : ""}>下架</option></select>
+        </div>
+        <div class="field full"><label>一句话卖点</label><input id="fSummary" value="${esc(data.summary || "")}" placeholder="42dB 主动降噪 · 续航 9 小时" /></div>
+        <div class="field full"><label>详情描述</label><textarea id="fDesc" placeholder="材质、参数、适用场景…">${esc(data.description || "")}</textarea></div>
+        <div class="field full"><label>标签（用逗号分隔）</label><input id="fTags" value="${esc((data.tags || []).join(","))}" placeholder="主动降噪,一年质保" /></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="pCancel">取消</button>
+      <button class="btn btn-primary" id="pSave">${isEdit ? "保存修改" : "创建商品"}</button>
+    </div>`;
+
+  $("pModal").classList.add("show");
+  const close = () => $("pModal").classList.remove("show");
+  $("pClose").addEventListener("click", close);
+  $("pCancel").addEventListener("click", close);
+
+  $("pSave").addEventListener("click", async () => {
+    const payload = {
+      name: $("fName").value.trim(),
+      category: $("fCategory").value,
+      emoji: $("fEmoji").value.trim() || "📦",
+      price: Number($("fPrice").value),
+      original_price: $("fOriginal").value ? Number($("fOriginal").value) : null,
+      stock: Number($("fStock").value),
+      summary: $("fSummary").value.trim(),
+      description: $("fDesc").value.trim(),
+      tags: $("fTags").value.split(/[，,]/).map((t) => t.trim()).filter(Boolean),
+      is_active: $("fActive").value === "1",
+    };
+    if (!payload.name || !(payload.price > 0)) {
+      toast("请填写商品名称和有效售价", "err");
+      return;
+    }
+    try {
+      if (isEdit) {
+        await api(`/admin/products/${p.id}`, { method: "PATCH", body: payload });
+        toast("商品已更新", "ok");
+      } else {
+        await api("/admin/products", {
+          method: "POST",
+          body: { ...payload, gradient: GRADIENTS[Math.floor(Math.random() * GRADIENTS.length)] },
+        });
+        toast("商品已创建", "ok");
+      }
+      close();
+      loadProducts();
+      loadStats();
+    } catch (e) {
+      toast(e.message, "err");
+    }
+  });
+}
+
+/* ============================================================
+   订单管理
+   ============================================================ */
+async function loadOrders() {
+  const status = $("oStatus").value;
+  const kw = $("oKw").value.trim();
+  try {
+    state.orders = await api(`/admin/orders?status=${status}&kw=${encodeURIComponent(kw)}`);
+    $("oCount").textContent = state.orders.length + " 笔订单";
+    const body = $("oBody");
+    if (!state.orders.length) {
+      body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:30px;">暂无订单</td></tr>';
+      return;
+    }
+    const chip = (s) => {
+      const map = { PENDING: ["amber", "待付款"], PAID: ["", "已付款"], SHIPPED: ["", "已发货"], DELIVERED: ["green", "已签收"], CANCELLED: ["gray", "已取消"] };
+      const [cls, label] = map[s] || ["gray", s];
+      return `<span class="chip ${cls}">${label}</span>`;
+    };
+    body.innerHTML = state.orders
+      .map(
+        (o) => `
+      <tr>
+        <td class="mono" style="color:var(--text);">${esc(o.order_sn)}</td>
+        <td>${esc(o.user ? o.user.name : "—")}</td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(o.items.map((i) => i.name + "×" + i.qty).join("、"))}</td>
+        <td class="mono">¥${Number(o.total_amount).toFixed(2)}</td>
+        <td>${chip(o.status)}</td>
+        <td class="mono" style="font-size:11.5px;">${o.tracking_number ? esc(o.carrier + " " + o.tracking_number) : "—"}</td>
+        <td style="font-size:11.5px;color:var(--text-3);">${esc(o.created_at)}</td>
+        <td>
+          <div class="ops">
+            ${o.status === "PAID" ? `<button class="row-link" data-ship="${o.id}">发货</button>` : ""}
+            ${o.status === "SHIPPED" ? `<button class="row-link" data-deliver="${o.id}">确认签收</button>` : ""}
+            ${o.status === "PENDING" ? `<span style="font-size:11.5px;color:var(--text-3);">待买家支付</span>` : ""}
+            ${o.status === "DELIVERED" ? `<span style="font-size:11.5px;color:var(--text-3);">已完成</span>` : ""}
+          </div>
+        </td>
+      </tr>`
+      )
+      .join("");
+
+    body.querySelectorAll("[data-ship]").forEach((btn) =>
+      btn.addEventListener("click", () => shipOrder(Number(btn.dataset.ship)))
+    );
+    body.querySelectorAll("[data-deliver]").forEach((btn) =>
+      btn.addEventListener("click", () => deliverOrder(Number(btn.dataset.deliver)))
+    );
+  } catch (e) {
+    toast(e.message, "err");
+  }
+}
+
+async function shipOrder(id) {
+  try {
+    const res = await api(`/admin/orders/${id}/ship`, { method: "POST", body: { carrier: "顺丰速运" } });
+    toast(`已发货：${res.carrier} ${res.tracking_number}`, "ok");
+    loadOrders();
+    loadStats();
+  } catch (e) {
+    toast(e.message, "err");
+  }
+}
+
+async function deliverOrder(id) {
+  try {
+    await api(`/admin/orders/${id}/deliver`, { method: "POST" });
+    toast("已标记签收", "ok");
+    loadOrders();
+  } catch (e) {
+    toast(e.message, "err");
+  }
+}
+
+let orderTimer = null;
+document.addEventListener("DOMContentLoaded", () => {});
+$("oStatus").addEventListener("change", loadOrders);
+$("oKw").addEventListener("input", () => {
+  clearTimeout(orderTimer);
+  orderTimer = setTimeout(loadOrders, 300);
+});
+$("pNew").addEventListener("click", () => openProductForm(null));

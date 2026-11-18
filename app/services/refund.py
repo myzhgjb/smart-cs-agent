@@ -217,6 +217,11 @@ def _status_text(status) -> str:
         return str(status)
 
 
+def status_text(status) -> str:
+    """订单状态中文（供商城与管理台复用）。"""
+    return _status_text(status)
+
+
 def refund_status_text(status) -> str:
     try:
         return _REFUND_STATUS_MAP[RefundStatus(status)]

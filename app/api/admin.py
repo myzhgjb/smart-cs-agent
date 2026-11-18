@@ -1,6 +1,7 @@
 """管理台接口：审核工单、会话回放、知识库管理、概览统计。"""
 from __future__ import annotations
 
+import random
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -21,8 +22,11 @@ from app.models import (
     KnowledgeChunk,
     KnowledgeDoc,
     Order,
+    OrderStatus,
+    Product,
     RefundApplication,
     User,
+    utcnow,
 )
 from app.rag.ingest import SUPPORTED, delete_doc, ingest_file, refresh_index
 from app.services import refund as refund_svc
@@ -301,3 +305,195 @@ async def kb_search(q: str, _: int = Depends(get_admin_user_id)):
 
     hits = index.search(q, top_k=6, min_coverage=0.05)
     return [h.to_dict() for h in hits]
+
+
+# ============================================================
+# 商品管理
+# ============================================================
+class ProductIn(BaseModel):
+    name: str
+    category: str = "数码影音"
+    price: float
+    original_price: Optional[float] = None
+    stock: int = 0
+    emoji: str = "📦"
+    gradient: str = "linear-gradient(135deg,#eef2ff,#c7d2fe)"
+    summary: str = ""
+    description: str = ""
+    tags: list[str] = []
+    is_active: bool = True
+
+
+class ProductPatch(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    price: Optional[float] = None
+    original_price: Optional[float] = None
+    stock: Optional[int] = None
+    emoji: Optional[str] = None
+    gradient: Optional[str] = None
+    summary: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[list[str]] = None
+    is_active: Optional[bool] = None
+
+
+def _admin_product_payload(p: Product) -> dict:
+    return {
+        "id": p.id,
+        "sku": p.sku,
+        "name": p.name,
+        "category": p.category,
+        "price": float(p.price),
+        "original_price": float(p.original_price) if p.original_price else None,
+        "stock": p.stock,
+        "emoji": p.emoji,
+        "gradient": p.gradient,
+        "summary": p.summary,
+        "sales": p.sales,
+        "rating": p.rating,
+        "is_active": p.is_active,
+        "tags": p.tags or [],
+    }
+
+
+@router.get("/admin/products")
+async def admin_products(
+    _: int = Depends(get_admin_user_id), session: AsyncSession = Depends(get_session)
+):
+    products = (
+        await session.exec(select(Product).order_by(Product.sort, Product.id))
+    ).all()
+    return [_admin_product_payload(p) for p in products]
+
+
+@router.post("/admin/products")
+async def create_product(
+    body: ProductIn,
+    _: int = Depends(get_admin_user_id),
+    session: AsyncSession = Depends(get_session),
+):
+    sku = f"XH-{datetime.utcnow().strftime('%y%m%d')}{random.randint(100, 999)}"
+    product = Product(sku=sku, **body.model_dump())
+    session.add(product)
+    await session.commit()
+    await session.refresh(product)
+    return _admin_product_payload(product)
+
+
+@router.patch("/admin/products/{product_id}")
+async def update_product(
+    product_id: int,
+    body: ProductPatch,
+    _: int = Depends(get_admin_user_id),
+    session: AsyncSession = Depends(get_session),
+):
+    product = await session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="商品不存在")
+    for key, value in body.model_dump(exclude_unset=True).items():
+        setattr(product, key, value)
+    session.add(product)
+    await session.commit()
+    await session.refresh(product)
+    return _admin_product_payload(product)
+
+
+@router.delete("/admin/products/{product_id}")
+async def delete_product(
+    product_id: int, _: int = Depends(get_admin_user_id), session: AsyncSession = Depends(get_session)
+):
+    product = await session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="商品不存在")
+    product.is_active = False
+    session.add(product)
+    await session.commit()
+    return {"ok": True}
+
+
+# ============================================================
+# 订单管理
+# ============================================================
+class ShipRequest(BaseModel):
+    carrier: str = "顺丰速运"
+    tracking_number: str = ""
+
+
+@router.get("/admin/orders")
+async def admin_orders(
+    status: str = "all",
+    kw: str = "",
+    _: int = Depends(get_admin_user_id),
+    session: AsyncSession = Depends(get_session),
+):
+    stmt = select(Order).order_by(Order.created_at.desc()).limit(100)
+    if status != "all":
+        stmt = stmt.where(Order.status == status)
+    orders = (await session.exec(stmt)).all()
+    users = {u.id: u for u in (await session.exec(select(User))).all()}
+
+    rows = []
+    for o in orders:
+        user = users.get(o.user_id)
+        if kw and kw not in o.order_sn and kw not in (user.full_name if user else ""):
+            continue
+        rows.append(
+            {
+                "id": o.id,
+                "order_sn": o.order_sn,
+                "status": o.status,
+                "status_text": refund_svc.status_text(o.status),
+                "total_amount": float(o.total_amount),
+                "items": o.items,
+                "tracking_number": o.tracking_number,
+                "carrier": o.carrier,
+                "created_at": o.created_at.strftime("%m-%d %H:%M"),
+                "user": {"id": user.id, "name": user.full_name, "username": user.username} if user else None,
+            }
+        )
+    return rows
+
+
+@router.post("/admin/orders/{order_id}/ship")
+async def ship_order(
+    order_id: int,
+    body: ShipRequest,
+    _: int = Depends(get_admin_user_id),
+    session: AsyncSession = Depends(get_session),
+):
+    order = await session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order.status not in (OrderStatus.PAID, OrderStatus.SHIPPED):
+        raise HTTPException(status_code=400, detail="仅已付款订单可发货")
+
+    order.status = OrderStatus.SHIPPED
+    order.carrier = body.carrier or "顺丰速运"
+    order.tracking_number = body.tracking_number or (
+        f"{'SF' if order.carrier == '顺丰速运' else 'YT'}{random.randint(10**11, 10**12 - 1)}"
+    )
+    order.shipped_at = utcnow()
+    session.add(order)
+    await session.commit()
+    return {
+        "ok": True,
+        "order_sn": order.order_sn,
+        "status": order.status,
+        "carrier": order.carrier,
+        "tracking_number": order.tracking_number,
+    }
+
+
+@router.post("/admin/orders/{order_id}/deliver")
+async def deliver_order(
+    order_id: int, _: int = Depends(get_admin_user_id), session: AsyncSession = Depends(get_session)
+):
+    order = await session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    order.status = OrderStatus.DELIVERED
+    order.delivered_at = utcnow()
+    session.add(order)
+    await session.commit()
+    return {"ok": True, "order_sn": order.order_sn, "status": order.status}

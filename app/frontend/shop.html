@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>星海优选 · 商城</title>
+<link rel="stylesheet" href="/static/styles.css" />
+<link rel="stylesheet" href="/static/shop.css" />
+</head>
+<body>
+<div class="shop-page">
+  <header class="shop-nav">
+    <div class="shop-nav-inner">
+      <a class="shop-brand" href="/shop">
+        <div class="mark">星</div>
+        <div>
+          <div class="t1">星海优选</div>
+          <div class="t2">XINGHAI MALL</div>
+        </div>
+      </a>
+
+      <div class="shop-search">
+        <input id="searchInput" placeholder="搜索商品、品类或标签" />
+        <button class="ico" id="searchBtn" title="搜索">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        </button>
+      </div>
+
+      <nav class="nav-links">
+        <button class="nav-link active" id="navShop">商品</button>
+        <button class="nav-link" id="navOrders">我的订单</button>
+        <a class="nav-link hide-sm" href="/">在线客服</a>
+        <a class="nav-link hide-sm" href="/admin" id="adminLink" style="display:none;">管理台</a>
+        <button class="nav-link cart-btn" id="cartBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.6 12.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.6L21.5 7H6"/></svg>
+          购物车
+          <span class="cart-count" id="cartCount" style="display:none;">0</span>
+        </button>
+        <div class="avatar" id="shopAvatar" style="width:30px;height:30px;font-size:12px;margin-left:4px;">张</div>
+        <button class="nav-link" id="logoutBtn" title="退出登录" style="padding:7px 8px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shop-main">
+    <!-- 商品视图 -->
+    <section id="viewProducts">
+      <div class="hero">
+        <div class="hero-text">
+          <div class="tag">会员日 · 全场满 99 包邮</div>
+          <h1>买得明白，退得省心</h1>
+          <p>自营正品、7 天无理由、次日达。下单后遇到任何问题，右侧客服可直接查单、改地址、办退款。</p>
+          <div class="hero-tags">
+            <span>正品保障</span><span>7 天无理由</span><span>48 小时发货</span><span>1 年质保</span>
+          </div>
+        </div>
+        <div class="hero-art">
+          <div>🎧</div><div>⌚</div><div>🎒</div>
+        </div>
+      </div>
+
+      <div class="shop-toolbar">
+        <div class="cat-chips" id="catChips"></div>
+        <div class="toolbar-right">
+          <span class="result-hint" id="resultHint"></span>
+          <select class="sort-select" id="sortSelect">
+            <option value="recommend">推荐排序</option>
+            <option value="sales">销量优先</option>
+            <option value="price_asc">价格从低到高</option>
+            <option value="price_desc">价格从高到低</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="product-grid" id="productGrid"></div>
+      <div class="shop-empty hidden" id="productEmpty">
+        <div class="ico">🔍</div>
+        <p>没有找到匹配的商品，换个关键词试试</p>
+        <button class="btn btn-ghost btn-sm" id="resetFilter">清空筛选</button>
+      </div>
+    </section>
+
+    <!-- 订单视图 -->
+    <section id="viewOrders" class="hidden">
+      <div class="shop-toolbar" style="margin-top:4px;">
+        <div style="font-size:15px;font-weight:600;">我的订单</div>
+        <div class="toolbar-right"><span class="result-hint" id="orderHint"></span></div>
+      </div>
+      <div class="order-list" id="orderList"></div>
+      <div class="shop-empty hidden" id="orderEmpty">
+        <div class="ico">🧾</div>
+        <p>还没有订单，去挑点东西吧</p>
+        <button class="btn btn-primary btn-sm" id="goShopping">去逛逛</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- 购物车抽屉 -->
+<div class="drawer-mask" id="cartMask"></div>
+<aside class="drawer" id="cartDrawer">
+  <div class="drawer-head">
+    <h3>购物车</h3>
+    <span class="chip gray" id="cartHint">0 件</span>
+    <button class="close" id="cartClose">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="cart-body" id="cartBody"></div>
+  <div class="drawer-foot">
+    <div class="sum-row"><span>合计（不含运费）</span><span class="v" id="cartTotal">¥0.00</span></div>
+    <button class="btn btn-primary" id="checkoutBtn">去结算</button>
+  </div>
+</aside>
+
+<!-- 商品详情 -->
+<div class="modal-mask" id="pdMask">
+  <div class="modal" style="position:relative;" id="pdModal"></div>
+</div>
+
+<!-- 结算 -->
+<div class="modal-mask" id="coMask">
+  <div class="modal checkout" style="position:relative;">
+    <button class="modal-close" id="coClose">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <h2>确认收货信息</h2>
+    <div class="sub">下单后可在客服对话框直接查询这笔订单</div>
+    <div style="font-size:12px;color:var(--text-2);margin-bottom:6px;">收货地址</div>
+    <textarea class="addr-input" id="coAddress"></textarea>
+    <div class="co-summary"><span id="coCount">共 0 件</span><b id="coTotal">¥0.00</b></div>
+    <div class="co-tip">提交后生成待付款订单，可立即模拟支付；订单数据与客服系统共用同一份数据库。</div>
+    <button class="btn btn-primary" id="coSubmit" style="width:100%;height:42px;">提交订单</button>
+  </div>
+</div>
+
+<!-- 下单成功 -->
+<div class="modal-mask" id="okMask">
+  <div class="modal success-box" style="position:relative;">
+    <div class="ico">✓</div>
+    <h2>订单已创建</h2>
+    <p>订单已进入待付款状态，可立即支付或先去问问客服</p>
+    <div class="sn" id="okSn">—</div>
+    <div class="btns">
+      <button class="btn btn-ghost" id="okAsk">咨询客服</button>
+      <button class="btn btn-primary" id="okPay">立即支付</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+<script src="/static/shop.js"></script>
+</body>
+</html>

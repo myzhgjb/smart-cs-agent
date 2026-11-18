@@ -180,3 +180,62 @@ async def refunds_of_user(session: AsyncSession, user_id: int) -> List[RefundApp
         .limit(5)
     )
     return list(rows.all())
+
+
+# ============================================================
+# 商品工具：库存 / 价格 / 卖点（商城与客服共用 products 表）
+# ============================================================
+def _name_score(question: str, name: str) -> int:
+    """用 2-gram 重合度粗匹配商品名，避免引入额外依赖。"""
+    q = question.replace(" ", "")
+    n = name.replace(" ", "")
+    if n and n in q:
+        return len(n) + 10
+    grams = {n[i : i + 2] for i in range(len(n) - 1)}
+    hit = sum(1 for g in grams if g in q)
+    # 商品名里的数字/型号也算强特征
+    return hit
+
+
+async def query_product(session: AsyncSession, question: str) -> ToolResult:
+    from app.models import Product
+
+    products = list(
+        (
+            await session.exec(select(Product).where(Product.is_active == True))  # noqa: E712
+        ).all()
+    )
+    if not products:
+        return ToolResult(context="商品库暂时为空。", ok=False)
+
+    scored = sorted(products, key=lambda p: _name_score(question, p.name), reverse=True)
+    best = scored[0]
+    score = _name_score(question, best.name)
+    if score < 3:
+        return ToolResult(
+            context="用户咨询商品，但没有匹配到具体商品（可能是同义叫法）。",
+            ok=False,
+            extra={"need_product": True},
+        )
+
+    stock_text = f"现货 {best.stock} 件" if best.stock > 0 else "暂时缺货"
+    ctx = (
+        f"商品：{best.name}（{best.category}）；售价 ¥{float(best.price):,.2f}"
+        + (f"，划线价 ¥{float(best.original_price):,.2f}" if best.original_price else "")
+        + f"；库存：{stock_text}；累计销量 {best.sales}；评分 {best.rating}；"
+        f"卖点：{best.summary}；详情：{best.description}；标签：{'、'.join(best.tags or [])}"
+    )
+    card = {
+        "type": "product",
+        "title": best.name,
+        "badge": "有货" if best.stock > 0 else "缺货",
+        "status": "success" if best.stock > 0 else "danger",
+        "fields": [
+            {"label": "售价", "value": f"¥{float(best.price):,.2f}"},
+            {"label": "库存", "value": stock_text},
+            {"label": "分类", "value": best.category},
+            {"label": "销量 / 评分", "value": f"{best.sales} 件 · {best.rating}"},
+            {"label": "卖点", "value": best.summary or "—"},
+        ],
+    }
+    return ToolResult(context=ctx, card=card, extra={"product_id": best.id})

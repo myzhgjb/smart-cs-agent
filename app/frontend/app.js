@@ -563,6 +563,13 @@ function connectWs() {
     state.user = me;
     localStorage.setItem(USER_KEY, JSON.stringify(me));
     enterApp();
+    const ask = new URLSearchParams(location.search).get("ask");
+    if (ask) {
+      history.replaceState(null, "", "/");
+      input.value = ask;
+      input.dispatchEvent(new Event("input"));
+      setTimeout(() => send(), 260);
+    }
   } catch (e) {
     logout();
   }
