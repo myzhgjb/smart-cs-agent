@@ -1,4 +1,4 @@
-# 星海优选 · 智能客服 Agent 系统
+# 星海优选 · 智能客服 + 商城 Agent 系统
 
 一个可直接运行的全栈电商 demo：**商城前台（商品 / 购物车 / 下单）+ 智能客服（多轮对话 / 工具调用 / 私有知识库 / 退款风控 / 人工审核）+ 运营后台（商品 / 订单 / 审核 / 知识库）**。
 三者共用一套用户与订单数据——商城下的单，客服能直接查；后台发的货，客服能直接报物流。
@@ -13,11 +13,42 @@
 | 买家（白银会员） | `user02` | `user123` |
 | 客服主管 | `admin` | `admin123` |
 
+> 以下截图均为本机实际运行抓取（1440×1000），非设计稿。
+
+---
+
+## 界面预览
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/01-chat.png" alt="智能客服对话" /><br/><sub><b>客服端</b>：意图识别 → 知识检索 / 工具调用 → 流式回答，右侧展示处理链路与知识库规模</sub></td>
+    <td width="50%"><img src="docs/screenshots/02-shop.png" alt="商城前台" /><br/><sub><b>商城前台</b>：分类、搜索、排序与商品卡片，价格库存与客服共用一份数据</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/03-product.png" alt="商品详情" /><br/><sub><b>商品详情</b>：卖点、参数、标签、库存与评分，可直接加入购物车或问客服</sub></td>
+    <td><img src="docs/screenshots/04-cart.png" alt="购物车" /><br/><sub><b>购物车抽屉</b>：改数量、移除、实时小计，服务端持久化</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/05-orders.png" alt="我的订单" /><br/><sub><b>我的订单</b>：状态、明细、物流单号，一键「咨询客服 / 申请退货」</sub></td>
+    <td><img src="docs/screenshots/06-admin-audit.png" alt="人工审核" /><br/><sub><b>人工审核</b>：风控触发规则、订单与退款对照、一键通过或驳回</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/07-admin-products.png" alt="商品管理" /><br/><sub><b>商品管理</b>：新增、编辑、上下架，改价改库存即时生效</sub></td>
+    <td><img src="docs/screenshots/08-admin-orders.png" alt="订单管理" /><br/><sub><b>订单管理</b>：状态筛选、订单号/买家搜索、一键发货生成运单号</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/09-admin-kb.png" alt="私有知识库" /><br/><sub><b>私有知识库</b>：上传 PDF/DOCX/MD/TXT，自动切分入库，可检索自测</sub></td>
+    <td><img src="docs/screenshots/10-admin-replay.png" alt="会话回放" /><br/><sub><b>会话回放</b>：全量会话、意图标签、知识引用与系统通知</sub></td>
+  </tr>
+</table>
+
 ---
 
 ## 一、项目来源与改造说明
 
 **上游项目**：[WangWeiqiang-UCAS/E-commerce-Smart-Agent](https://github.com/WangWeiqiang-UCAS/E-commerce-Smart-Agent)（167 star，FastAPI + LangGraph + PostgreSQL/pgvector + Redis + Celery + Gradio）。
+
+本项目在其基础上做了两件事：**① 把依赖重写为单机可运行**（去掉 PG/Redis/Celery/Gradio）；**② 补齐电商闭环**（商城前台、商品与购物车、订单后台、商品咨询工具）。上游 README 保留在 `README.upstream.md`，git 历史完整保留。
 
 原项目强依赖 Docker、PostgreSQL(pgvector)、Redis 与通义千问 Embedding，在本机（Windows / 无 Docker / 无 MySQL / 无 Redis / DeepSeek 无 Embedding 接口）无法启动。因此在**保留业务模型与 Agent 设计**的前提下做了工程化改造：
 
@@ -96,6 +127,7 @@
 │   ├── api/                 auth / chat / admin / ws
 │   └── frontend/            index.html(客服) · shop.html(商城) · admin.html(后台)
 │                            app.js · shop.js · admin.js · styles.css · shop.css
+├── docs/screenshots/         README 截图（本机实拍）
 ├── data/
 │   ├── app.db               SQLite（首次启动自动生成）
 │   ├── knowledge/           内置私有知识文档（5 篇，29 个片段）

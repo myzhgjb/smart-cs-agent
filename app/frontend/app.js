@@ -23,6 +23,7 @@ const INTENT_LABELS = {
   REFUND_STATUS: "退款进度",
   INVOICE: "发票服务",
   POLICY: "政策咨询",
+  PRODUCT: "商品咨询",
   HUMAN: "转人工",
   OTHER: "综合咨询",
 };
@@ -134,7 +135,7 @@ function enterApp() {
   $("userName").textContent = u.full_name || u.username || "客服";
   $("userMeta").textContent = u.member_level || "普通会员";
   $("userAvatar").textContent = (u.full_name || u.username || "客").slice(0, 1);
-  if (u.is_admin) $("adminLink").style.display = "";
+  $("adminLink").style.display = u.is_admin ? "" : "none";
 
   newThread(false);
   loadThreads();
@@ -246,6 +247,8 @@ async function openThread(threadId) {
       }
     });
     scrollBottom();
+    const lastIntent = [...msgs].reverse().find((m) => m.role === "assistant" && m.intent);
+    if (lastIntent) updateTrace(INTENT_LABELS[lastIntent.intent] || lastIntent.intent, null, true);
   } catch (e) {
     toast(e.message, "err");
   }
